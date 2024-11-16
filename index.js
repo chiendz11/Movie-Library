@@ -1,70 +1,72 @@
 require("dotenv").config();
-const mongoose = require('mongoose');
-
 const express = require('express');
 const app = express();
 const port = 8000;
 
+// MySQL
+const db = require('./config/database');
+
 // used for session cookie
 const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
+
+// Passport
 const passport = require('passport');
-const passportLocal = require('./config/passport-local-startergy');
-//Mongo-store
-const MongoStore = require('connect-mongo')
+const passportLocal = require('./config/passport-local-strategy');
 
-
-//cookie-parser
+// cookie-parser
 const cookieParser = require('cookie-parser');
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-//database
-const db = require('./config/mongoose');
-//include layouts
+
+// include layouts
 const expressLayouts = require('express-ejs-layouts');
 app.use(expressLayouts);
 
-//for styling static files
+// for styling static files
 app.set('layout extractStyles', true);
 app.set('layout extractScripts', true);
 
-//static files
+// static files
 app.use(express.static('./assets'));
 
 // EJS Set-up
-app.set('view engine','ejs');
-app.set('views','./views');
+app.set('view engine', 'ejs');
+app.set('views', './views');
 
-//MongoStore stores session cookies
+// MySQLStore for session cookies
+const sessionStore = new MySQLStore({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: 'MovieApp',
+    port: process.env.DB_PORT
+});
+
 app.use(session({
     name: 'MovieApp',
-    // TODO change the secret before deployment in production mode
     secret: 'blahsomething',
     saveUninitialized: false,
     resave: false,
     cookie: {
-        maxAge: (1000 * 60 * 100)
+        maxAge: 1000 * 60 * 100 // 100 minutes
     },
-    store : MongoStore.create(
-        {
-            mongoUrl : 'mongodb+srv://mullaaman0508:L%40tur123@cluster0.buvhlnw.mongodb.net/?retryWrites=true&w=majority',
-            autoRemove : 'disabled'
-        },function(err){
-            console.log(err || "Connection is fine");
-        }
-    )
+    store: sessionStore
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(passport.setAuthenticatedUser);
 
-app.use('/',require('./routes'));
+// Routes
+app.use('/', require('./routes'));
 
-app.listen(port,function(err){
-    if(err){
-        console.log("Error: ",err);
+// Start server
+app.listen(port, function (err) {
+    if (err) {
+        console.log("Error: ", err);
         return;
     }
-    console.log("Successfully running on port",port);
-})
+    console.log("Successfully running on port", port);
+});
